@@ -2,18 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { initializeApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-
-// Configuración directa de Firebase (reemplaza con tus datos)
-const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO_ID",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
-};
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-register',
@@ -21,155 +10,229 @@ const firebaseConfig = {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="register-container">
-      <h2>Crear Cuenta</h2>
+      <div class="header">
+        <h1>Crear Cuenta</h1>
+        <p>Únete a nuestra plataforma</p>
+      </div>
+      
+      <div class="user-type-selector">
+        <button 
+          [class.active]="userType === 'uscomun'"
+          (click)="selectUserType('uscomun')"
+        >
+          Usuario Común
+        </button>
+        <button 
+          [class.active]="userType === 'admin'"
+          (click)="selectUserType('admin')"
+        >
+          Administrador
+        </button>
+      </div>
       
       <form (ngSubmit)="onSubmit()" class="register-form">
         <div class="form-group">
-          <label for="email">Email:</label>
+          <label for="nombre">Nombre Completo</label>
+          <input 
+            type="text" 
+            id="nombre" 
+            [(ngModel)]="credentials.nombre" 
+            name="nombre" 
+            required
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Correo Electrónico</label>
           <input 
             type="email" 
             id="email" 
             [(ngModel)]="credentials.email" 
             name="email" 
             required
-            placeholder="tu@email.com"
           >
         </div>
         
         <div class="form-group">
-          <label for="password">Contraseña:</label>
+          <label for="password">Contraseña</label>
           <input 
             type="password" 
             id="password" 
             [(ngModel)]="credentials.password" 
             name="password" 
             required
-            placeholder="••••••••"
             minlength="6"
           >
         </div>
-
+        
         <div class="form-group">
-          <label for="confirmPassword">Confirmar Contraseña:</label>
+          <label for="confirmPassword">Confirmar Contraseña</label>
           <input 
             type="password" 
             id="confirmPassword" 
             [(ngModel)]="credentials.confirmPassword" 
             name="confirmPassword" 
             required
-            placeholder="••••••••"
-            minlength="6"
           >
+          <small *ngIf="!passwordsMatch() && credentials.confirmPassword" class="error-text">
+            Las contraseñas no coinciden
+          </small>
         </div>
         
-        <button type="submit" [disabled]="loading || !passwordsMatch()">
+        <button 
+          type="submit" 
+          [disabled]="loading || !passwordsMatch() || !userType" 
+          class="register-button"
+        >
           {{ loading ? 'Creando cuenta...' : 'Registrarse' }}
         </button>
       </form>
       
+      <div class="footer">
+        <p>¿Ya tienes una cuenta? <a (click)="goToLogin()">Inicia sesión</a></p>
+      </div>
+      
       <div *ngIf="errorMessage" class="error-message">
         {{ errorMessage }}
       </div>
-
+      
       <div *ngIf="successMessage" class="success-message">
         {{ successMessage }}
-      </div>
-
-      <div class="login-link">
-        ¿Ya tienes cuenta? <a (click)="goToLogin()">Inicia sesión</a>
       </div>
     </div>
   `,
   styles: [`
     .register-container {
       max-width: 400px;
-      margin: 50px auto;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background: white;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin: 2rem auto;
+      padding: 2rem;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     
-    h2 {
+    .header {
       text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .header h1 {
       color: #333;
-      margin-bottom: 20px;
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .header p {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .user-type-selector {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
+    }
+    
+    .user-type-selector button {
+      padding: 0.5rem 1rem;
+      border: 1px solid #ddd;
+      background: #f5f5f5;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .user-type-selector button.active {
+      background: #4CAF50;
+      color: white;
+      border-color: #4CAF50;
     }
     
     .register-form {
       display: flex;
       flex-direction: column;
-      gap: 15px;
+      gap: 1rem;
     }
     
     .form-group {
       display: flex;
       flex-direction: column;
+      gap: 0.5rem;
     }
     
-    label {
-      margin-bottom: 5px;
-      font-weight: bold;
+    .form-group label {
+      font-size: 0.9rem;
       color: #555;
     }
     
-    input {
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 16px;
+    .form-group input {
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
     }
     
-    button {
-      padding: 12px;
-      background-color: #4CAF50;
+    .form-group input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+    
+    .register-button {
+      padding: 0.8rem;
+      background: #4CAF50;
       color: white;
       border: none;
-      border-radius: 4px;
-      font-size: 16px;
+      border-radius: 5px;
+      font-size: 1rem;
       cursor: pointer;
-      margin-top: 10px;
-      transition: background-color 0.3s;
+      transition: background 0.3s ease;
+      margin-top: 1rem;
     }
     
-    button:hover {
-      background-color: #45a049;
-    }
-    
-    button:disabled {
-      background-color: #cccccc;
+    .register-button:disabled {
+      background: #cccccc;
       cursor: not-allowed;
     }
     
-    .error-message {
-      color: #d32f2f;
-      margin-top: 15px;
-      padding: 10px;
-      background-color: #fde0e0;
-      border-radius: 4px;
-      text-align: center;
+    .register-button:hover:not(:disabled) {
+      background: #45a049;
     }
-
-    .success-message {
-      color: #388e3c;
-      margin-top: 15px;
-      padding: 10px;
-      background-color: #e8f5e9;
-      border-radius: 4px;
+    
+    .footer {
       text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.9rem;
+      color: #666;
     }
-
-    .login-link {
-      text-align: center;
-      margin-top: 20px;
-      color: #555;
-    }
-
-    .login-link a {
-      color: #4285f4;
+    
+    .footer a {
+      color: #4CAF50;
+      text-decoration: none;
       cursor: pointer;
+    }
+    
+    .footer a:hover {
       text-decoration: underline;
+    }
+    
+    .error-message {
+      color: #f44336;
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    
+    .success-message {
+      color: #4CAF50;
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    
+    .error-text {
+      color: #f44336;
+      font-size: 0.8rem;
     }
   `]
 })
@@ -177,77 +240,68 @@ export class RegisterComponent {
   credentials = {
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    nombre: ''
   };
   
+  userType: 'uscomun' | 'admin' | null = null;
   loading = false;
   errorMessage = '';
   successMessage = '';
-  private auth: any;
 
-  constructor(private router: Router) {
-    // Inicializar Firebase
-    const app = initializeApp(firebaseConfig);
-    this.auth = getAuth(app);
+  constructor(
+    private router: Router,
+    private authService: AuthService
+  ) {}
+
+  selectUserType(type: 'uscomun' | 'admin') {
+    this.userType = type;
   }
 
   passwordsMatch(): boolean {
     return this.credentials.password === this.credentials.confirmPassword;
   }
 
-  async onSubmit() {
+  onSubmit() {
+    if (!this.userType) {
+      this.errorMessage = 'Por favor selecciona un tipo de usuario';
+      return;
+    }
+
     this.loading = true;
     this.errorMessage = '';
     this.successMessage = '';
 
-    // Validar que las contraseñas coincidan
     if (!this.passwordsMatch()) {
       this.errorMessage = 'Las contraseñas no coinciden';
       this.loading = false;
       return;
     }
 
-    try {
-      // Crear usuario con Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(
-        this.auth,
-        this.credentials.email,
-        this.credentials.password
-      );
-      
-      // Registro exitoso
-      this.successMessage = '¡Cuenta creada con éxito! Redirigiendo...';
-      console.log('Usuario registrado:', userCredential.user);
-      
-      // Redirigir después de 2 segundos
-      setTimeout(() => {
-        this.router.navigate(['/dashboard']); // Cambia por tu ruta deseada
-      }, 2000);
-      
-    } catch (error: any) {
-      console.error('Error en registro:', error);
-      this.errorMessage = this.getErrorMessage(error.code);
-    } finally {
-      this.loading = false;
-    }
+    const userData = {
+      email: this.credentials.email,
+      password: this.credentials.password,
+      nombre: this.credentials.nombre,
+      activo: true
+    };
+
+    this.authService.register(userData, this.userType).subscribe({
+      next: (response) => {
+        this.loading = false;
+        this.successMessage = '¡Cuenta creada con éxito! Redirigiendo...';
+        setTimeout(() => {
+          this.router.navigate(['/login']);
+        }, 2000);
+      },
+      error: (error) => {
+        this.loading = false;
+        this.errorMessage = error.error?.message || 'Error al registrar usuario';
+        console.error('Error en registro:', error);
+      }
+    });
   }
 
   goToLogin() {
-    this.router.navigate(['']); // Asegúrate de tener esta ruta configurada
-  }
-
-  private getErrorMessage(code: string): string {
-    switch (code) {
-      case 'auth/email-already-in-use':
-        return 'Este email ya está registrado';
-      case 'auth/invalid-email':
-        return 'Email inválido';
-      case 'auth/weak-password':
-        return 'La contraseña debe tener al menos 6 caracteres';
-      case 'auth/operation-not-allowed':
-        return 'Operación no permitida';
-      default:
-        return 'Error al registrar usuario';
-    }
+    this.router.navigate(['/login']);
   }
 }

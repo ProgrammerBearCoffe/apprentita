@@ -1,49 +1,83 @@
-import { Injectable } from "@angular/core";
-import { Auth, user } from "@angular/fire/auth";
-import { browserLocalPersistence, setPersistence, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
-import { from, Observable } from "rxjs";
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { Observable, catchError, tap, throwError } from 'rxjs';
 
 @Injectable({
-    providedIn: 'root',
+  providedIn: 'root'
 })
+export class AuthService {
+  private baseUrl = 'http://localhost:8080/rentasAuto';
+  private currentUserType: 'uscomun' | 'admin' | null = null;
 
-export class AuthService{
+  constructor(private http: HttpClient, private router: Router) {}
 
-    user: Observable < User| null>;
+  checkConnection(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/uscomun/getAll`).pipe(
+      catchError(error => {
+        console.error('Error verificando conexión:', error);
+        return throwError(() => error);
+      })
+    );
+  }
 
-    constructor(private firebaseAuth: Auth){
+  login(credentials: {email: string, password: string}, userType: 'uscomun' | 'admin'): Observable<any> {
+    this.currentUserType = userType;
+    const endpoint = userType === 'uscomun' ? '/uscomun/login' : '/admin/login';
+    
+    return this.http.post(`${this.baseUrl}${endpoint}`, credentials, {
+      headers: { 'Content-Type': 'application/json' }
+    }).pipe(
+      tap(response => {
+        if (response) {
+          localStorage.setItem('currentUser', JSON.stringify(response));
+          localStorage.setItem('userType', userType);
+          // Redirigir según tipo de usuario
+          const redirectTo = userType === 'uscomun' ? '/home' : '/homeadmin';
+          this.router.navigate([redirectTo]);
+        }
+      }),
+      catchError(error => {
+        console.error('Error en login:', error);
+        return throwError(() => error);
+      })
+    );
+  }
 
-        this.setSessionStoragePersistence();
-        this.user = user(this.firebaseAuth);
-    }
+  register(userData: any, userType: 'uscomun' | 'admin'): Observable<any> {
+    const endpoint = userType === 'uscomun' ? '/uscomun/add' : '/admin/add';
+    
+    return this.http.post(`${this.baseUrl}${endpoint}`, userData, {
+      headers: { 'Content-Type': 'application/json' }
+    }).pipe(
+      catchError(error => {
+        console.error('Error en registro:', error);
+        return throwError(() => error);
+      })
+    );
+  }
 
-    private setSessionStoragePersistence(): void {
+  logout(): void {
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userType');
+    this.router.navigate(['/login']);
+  }
 
-        setPersistence(this.firebaseAuth, browserLocalPersistence)
-    }
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('currentUser');
+  }
 
-    login(usuario: any): Observable<void> {
+  getCurrentUser(): any {
+    const user = localStorage.getItem('currentUser');
+    return user ? JSON.parse(user) : null;
+  }
 
-        const promise = signInWithEmailAndPassword(
+  getUserType(): 'uscomun' | 'admin' | null {
+    return localStorage.getItem('userType') as 'uscomun' | 'admin' | null;
+  }
 
-            this.firebaseAuth,
-            usuario.email,
-            usuario.password
-        )
-        .then(() => {
-        
-        })
-
-        return from(promise);
-    }
-
-    logout(): Observable<void> {
-        
-        const promise = signOut(this.firebaseAuth).then(() => {
-          
-            sessionStorage.clear();
-        });
-        return from(promise);
-      }
-
+  // Nuevo método para verificar si el usuario actual es admin
+  isAdmin(): boolean {
+    return this.getUserType() === 'admin';
+  }
 }

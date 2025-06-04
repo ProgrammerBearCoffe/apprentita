@@ -1,29 +1,24 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { HeaderComponent } from './component/header/header.component';
 import { NavComponent } from './component/nav/nav.component';
-import { RentasComponent } from './component/rentas/rentas.component';
-import { ParentComponent } from './component/parent/parent.component';
-import { ChildComponent } from './component/child/child.component';
-import { LoginComponent } from './component/login/login.component';
-import { RegisterComponent } from './component/register/register.component';
+import { CommonModule } from '@angular/common';
+
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, NavComponent,LoginComponent,RentasComponent, RegisterComponent],
+  standalone: true,
+  imports: [RouterOutlet, NavComponent, CommonModule],
   template: `
-  <app-nav></app-nav>
-  <app-register></app-register>
-  
-  
-  
-  
+    <app-nav *ngIf="showNav"></app-nav>
+    <router-outlet></router-outlet>
   `,
-  styles:[],
-})  
+  styles: [`
+    :host {
+      display: block;
+      min-height: 100vh;
+    }
+  `]
+})
 export class AppComponent {
   title = 'AppRentita';
+  showNav = true; // Muestra el nav en todas las páginas
 }
-// <app-header><app-header/>
-   // <app-nav></app-nav>    
-   // <router-outlet/>
-   //<app-rentas></app-rentas>

@@ -1,7 +1,12 @@
 import { Component } from '@angular/core';
+import { AuthService } from '../../services/auth.service';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-nav',
+  standalone: true,
+  imports: [CommonModule, RouterModule],
   template: `
     <nav class="navbar">
       <div class="navbar-logo">
@@ -22,8 +27,14 @@ import { Component } from '@angular/core';
       <div class="navbar-user">
         <a href="#">Buscar tienda</a>
         <a href="#">Ayuda</a>
-        <a href="#">Únete</a>
-        <a href="#">Iniciar sesión</a>
+        <ng-container *ngIf="!isLoggedIn; else userLoggedIn">
+          <a routerLink="/register">Únete</a>
+          <a routerLink="/login">Iniciar sesión</a>
+        </ng-container>
+        <ng-template #userLoggedIn>
+          <a (click)="logout()">Cerrar sesión</a>
+          <span class="user-name">{{currentUser?.nombre}}</span>
+        </ng-template>
       </div>
     </nav>
   `,
@@ -32,67 +43,69 @@ import { Component } from '@angular/core';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 20px;
+      padding: 1rem 2rem;
       background-color: #fff;
-      border-bottom: 1px solidrgb(32, 55, 78);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
     }
-
-    .navbar-logo {
-      flex: 1;
-      display: flex;
-      align-items: center;
-    }
-
-    .logo-img {
-      height: 55px;
+    .navbar-logo img {
+      height: 40px;
       width: auto;
     }
-
-    .navbar-menu {
-      flex: 3;
-      text-align: center;
-    }
-
     .navbar-menu ul {
+      display: flex;
       list-style: none;
+      gap: 1.5rem;
       margin: 0;
       padding: 0;
-      display: flex;
-      justify-content: center;
     }
-
-    .navbar-menu ul li {
-      margin: 0 25px;
-    }
-
-    .navbar-menu ul li a {
+    .navbar-menu a {
       text-decoration: none;
-  color: #141414;
-  margin-left: 15px;
-  font-size: 14px;
+      color: #333;
+      font-weight: 500;
+      transition: color 0.3s;
     }
-
-    .navbar-menu ul li a:hover {
-      text-decoration: underline;
+    .navbar-menu a:hover {
+      color: #007bff;
     }
-
     .navbar-user {
-      flex: 2;
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      gap: 1.5rem;
     }
-
     .navbar-user a {
-      text-decoration: Arial;
-      color: #141414;
-      margin-left: 15px;
-      font-size: 14px;
+      text-decoration: none;
+      color: #333;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.3s;
     }
-
     .navbar-user a:hover {
-      text-decoration: underline;
+      color: #007bff;
+    }
+    .user-name {
+      margin-left: 0.5rem;
+      font-weight: 500;
+      color: #007bff;
     }
   `]
 })
-export class NavComponent {}
+export class NavComponent {
+  isLoggedIn = false;
+  currentUser: any;
+
+  constructor(private authService: AuthService) {
+    this.isLoggedIn = this.authService.isAuthenticated();
+    if (this.isLoggedIn) {
+      this.currentUser = this.authService.getCurrentUser();
+    }
+  }
+
+  logout() {
+    this.authService.logout();
+    this.isLoggedIn = false;
+    this.currentUser = null;
+  }
+}
